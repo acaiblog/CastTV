@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CastTV.Sender" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">#185FA5</item>
+        <item name="colorPrimaryContainer">#E6F1FB</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="android:statusBarColor">#0C447C</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+    </style>
+</resources>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    tools:context=".MainActivity">
+
+    <!-- 视频渲染层 -->
+    <org.webrtc.SurfaceViewRenderer
+        android:id="@+id/surfaceRenderer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <!-- 等待画面 -->
+    <LinearLayout
+        android:id="@+id/waitingView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#000000">
+
+        <View
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:background="@drawable/ic_launcher"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/waiting_for_sender"
+            android:textColor="#FFFFFF"
+            android:textSize="24sp"
+            android:layout_marginTop="32dp"/>
+
+        <TextView
+            android:id="@+id/tvResolution"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="分辨率：等待连接…"
+            android:textColor="#888780"
+            android:textSize="16sp"
+            android:layout_marginTop="12dp"/>
+
+        <ProgressBar
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="40dp"
+            android:indeterminateTint="#185FA5"/>
+    </LinearLayout>
+
+    <!-- 底部状态栏 -->
+    <LinearLayout
+        android:id="@+id/statusBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical"
+        android:visibility="gone"
+        android:background="#80000000">
+
+        <View
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:background="@drawable/ic_launcher"/>
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/connected"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginStart="12dp"/>
+    </LinearLayout>
+
+</FrameLayout>

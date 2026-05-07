@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">快连 TV</string>
+    <string name="waiting_for_sender">等待手机连接…</string>
+    <string name="connected">已连接，正在接收画面</string>
+    <string name="disconnected">连接已断开</string>
+    <string name="resolution_label">分辨率：%1$s</string>
+</resources>

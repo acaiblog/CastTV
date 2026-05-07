@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">快连</string>
+    <string name="btn_start_cast">开始投屏</string>
+    <string name="btn_stop_cast">停止投屏</string>
+    <string name="tv_resolution">电视分辨率：%1$s</string>
+    <string name="status_idle">等待投屏…</string>
+    <string name="status_casting">正在投屏</string>
+    <string name="status_connecting">连接中…</string>
+    <string name="status_error">连接失败：%1$s</string>
+    <string name="notification_channel_name">投屏服务</string>
+    <string name="notification_channel_desc">投屏进行中的前台通知</string>
+    <string name="notification_title">快连 正在投屏</string>
+    <string name="notification_text">点击查看投屏状态</string>
+    <string name="permission_required">需要截屏权限才能投屏</string>
+    <string name="no_tv_found">未发现可投屏的电视</string>
+    <string name="select_tv">选择电视</string>
+</resources>

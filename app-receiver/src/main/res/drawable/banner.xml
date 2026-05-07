@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <!-- 背景 -->
+    <path
+        android:fillColor="#185FA5"
+        android:pathData="M0,0h320v180h-320z"/>
+    <!-- TV 屏幕 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,30h240c4.4,0 8,3.6 8,8v104c0,4.4 -3.6,8 -8,8h-240c-4.4,0 -8,-3.6 -8,-8v-104c0,-4.4 3.6,-8 8,-8z"/>
+    <path
+        android:fillColor="#185FA5"
+        android:pathData="M44,34h232c2.2,0 4,1.8 4,4v96c0,2.2 -1.8,4 -4,4h-232c-2.2,0 -4,-1.8 -4,-4v-96c0,-2.2 1.8,-4 4,-4z"/>
+    <!-- 屏幕内容 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M52,42h216v80h-216z"/>
+    <!-- 投屏箭头 -->
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M120,65l40,17l-40,17z"/>
+    <path
+        android:fillColor="#4CAF50"
+        android:pathData="M160,65l40,17l-40,17z"/>
+    <!-- TV 支架 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M140,142h40v10h-40z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M120,152h80v8h-80z"/>
+    <!-- 文字 -->
+    <path
+        android:fillColor="#185FA5"
+        android:pathData="M70,80h80v15h-80z"/>
+    <path
+        android:fillColor="#185FA5"
+        android:pathData="M170,80h80v15h-80z"/>
+</vector>
