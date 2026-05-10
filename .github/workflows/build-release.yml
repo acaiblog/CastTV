@@ -40,8 +40,12 @@ jobs:
     - name: Rename APKs
       run: |
         mkdir -p artifacts
-        cp app-receiver/build/outputs/apk/release/app-receiver-release-unsigned.apk artifacts/CastTV-Receiver-v${{ github.event.inputs.version_name || github.ref_name }}.apk || true
-        cp app-sender/build/outputs/apk/release/app-sender-release-unsigned.apk artifacts/CastTV-Sender-v${{ github.event.inputs.version_name || github.ref_name }}.apk || true
+        # 去除版本号前的v前缀（github.ref_name已包含v）
+        VERSION="${{ github.event.inputs.version_name || github.ref_name }}"
+        VERSION="${VERSION#v}"
+        cp app-receiver/build/outputs/apk/release/app-receiver-release-unsigned.apk "artifacts/CastTV-Receiver-v${VERSION}.apk" || true
+        cp app-sender/build/outputs/apk/release/app-sender-release-unsigned.apk "artifacts/CastTV-Sender-v${VERSION}.apk" || true
+        ls -lh artifacts/
         
     - name: Upload Receiver APK
       uses: actions/upload-artifact@v4
