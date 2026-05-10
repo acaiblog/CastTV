@@ -1,0 +1,68 @@
+name: Build Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version name (e.g., 1.9)'
+        required: true
+        default: '1.9'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v3
+      
+    - name: Make gradlew executable
+      run: chmod +x ./gradlew
+      
+    - name: Build Receiver APK (Release)
+      run: ./gradlew :app-receiver:assembleRelease
+      
+    - name: Build Sender APK (Release)
+      run: ./gradlew :app-sender:assembleRelease
+      
+    - name: Rename APKs
+      run: |
+        mkdir -p artifacts
+        cp app-receiver/build/outputs/apk/release/app-receiver-release-unsigned.apk artifacts/CastTV-Receiver-v${{ github.event.inputs.version_name || github.ref_name }}.apk || true
+        cp app-sender/build/outputs/apk/release/app-sender-release-unsigned.apk artifacts/CastTV-Sender-v${{ github.event.inputs.version_name || github.ref_name }}.apk || true
+        
+    - name: Upload Receiver APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: CastTV-Receiver-APK
+        path: artifacts/CastTV-Receiver-*.apk
+        if-no-files-found: warn
+        
+    - name: Upload Sender APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: CastTV-Sender-APK
+        path: artifacts/CastTV-Sender-*.apk
+        if-no-files-found: warn
+        
+    - name: Create Release (if tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: artifacts/*.apk
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
