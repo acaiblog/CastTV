@@ -14,19 +14,19 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
-    <!-- 等待画面 -->
+    <!-- 等待画面（无背景色） -->
     <LinearLayout
         android:id="@+id/waitingView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:gravity="center"
-        android:background="#000000">
+        android:background="@android:color/transparent">
 
-        <View
+        <ImageView
             android:layout_width="80dp"
             android:layout_height="80dp"
-            android:background="@drawable/ic_launcher"/>
+            android:src="@mipmap/ic_launcher"/>
 
         <TextView
             android:layout_width="wrap_content"
@@ -49,10 +49,10 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginTop="40dp"
-            android:indeterminateTint="#185FA5"/>
+            android:indeterminateTint="#37B24F"/>
     </LinearLayout>
 
-    <!-- 底部状态栏 -->
+    <!-- 底部状态栏（半透明） -->
     <LinearLayout
         android:id="@+id/statusBar"
         android:layout_width="match_parent"
@@ -64,10 +64,10 @@
         android:visibility="gone"
         android:background="#80000000">
 
-        <View
+        <ImageView
             android:layout_width="12dp"
             android:layout_height="12dp"
-            android:background="@drawable/ic_launcher"/>
+            android:src="@mipmap/ic_launcher"/>
 
         <TextView
             android:id="@+id/tvStatus"
@@ -78,5 +78,17 @@
             android:textSize="14sp"
             android:layout_marginStart="12dp"/>
     </LinearLayout>
+
+    <!-- 版本号（右下角，最后声明保证在最上层） -->
+    <TextView
+        android:id="@+id/tvVersion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginBottom="16dp"
+        android:layout_marginEnd="16dp"
+        android:text="v1.2"
+        android:textColor="#CCCCCC"
+        android:textSize="14sp"/>
 
 </FrameLayout>

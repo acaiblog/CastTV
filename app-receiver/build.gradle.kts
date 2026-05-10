@@ -12,8 +12,8 @@ android {
         // 索尼 Android TV 通常为 TV 设备，minSdk 26 以上
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 10
+        versionName = "1.9"
         // TV 版本包名后缀：可同时安装手机版和 TV 版
         applicationIdSuffix = ".tv"
     }

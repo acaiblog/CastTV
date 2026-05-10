@@ -4,25 +4,13 @@ import android.util.Log
 import com.casttv.sender.TvDevice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-/**
- * WebRTC 信令客户端（发送端）
- *
- * 信令流程：
- * 1. 发送端生成 SDP Offer → POST 到电视端
- * 2. 电视端返回 SDP Answer
- * 3. ICE Candidate 交换
- *
- * 所有通信走 HTTP（局域网直连，无需外网）
- */
 class SignalingClient {
-
     companion object {
         private const val TAG = "SignalingClient"
         private val JSON = "application/json; charset=utf-8".toMediaType()
@@ -35,34 +23,36 @@ class SignalingClient {
         .build()
 
     /**
-     * 发送 SDP Offer 给电视端
-     * @param sdpOffer 生成的 WebRTC SDP Offer
-     * @param device 目标电视设备
-     * @return 电视端返回的 SDP Answer
+     * 发送 SDP Offer 给电视端，并从 HTTP 响应中读取 Answer
      */
-    @Suppress("BlockingMethodInNonBlockingContext")
-    suspend fun sendOffer(sdpOffer: String, device: TvDevice): String? =
+    suspend fun sendOffer(sdpOffer: String, device: TvDevice, signalingPort: Int): String? =
         withContext(Dispatchers.IO) {
             try {
                 val json = JSONObject().apply {
                     put("type", "offer")
                     put("sdp", sdpOffer)
+                    put("signaling_port", signalingPort)
                 }
 
                 val request = Request.Builder()
                     .url("http://${device.ipAddress}:${device.port}/signaling/offer")
                     .post(json.toString().toRequestBody(JSON))
                     .build()
+                Log.d(TAG, "发送 Offer 到: http://${device.ipAddress}:${device.port}/signaling/offer")
+                Log.d(TAG, "Offer SDP 前100字符: ${sdpOffer.take(100)}")
 
                 client.newCall(request).execute().use { response ->
+                    Log.d(TAG, "Offer 响应码: ${response.code}")
                     if (!response.isSuccessful) {
-                        Log.e(TAG, "发送 Offer 失败: ${response.code}")
+                        val errorBody = response.body?.string()?.take(200) ?: ""
+                        Log.e(TAG, "发送 Offer 失败: ${response.code}, body: $errorBody")
                         return@withContext null
                     }
                     val body = response.body?.string()
+                    Log.d(TAG, "Offer 响应体前200字符: ${body?.take(200)}")
                     val answer = JSONObject(body ?: "")
-                    Log.d(TAG, "收到 Answer，type=${answer.optString("type")}")
-                    answer.optString("sdp")
+                    Log.d(TAG, "收到 Answer，type=${answer.optString("type")}, sdp长度=${answer.optString("sdp", "").length}")
+                    return@withContext answer.optString("sdp", null)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "信令交换失败: ${e.message}")
@@ -73,7 +63,6 @@ class SignalingClient {
     /**
      * 发送 ICE Candidate 给电视端
      */
-    @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun sendIceCandidate(candidate: String, sdpMid: String?, sdpMLineIndex: Int, device: TvDevice): Boolean =
         withContext(Dispatchers.IO) {
             try {

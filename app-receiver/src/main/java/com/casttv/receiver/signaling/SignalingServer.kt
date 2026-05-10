@@ -12,14 +12,10 @@ import java.net.NetworkInterface
 import java.util.concurrent.TimeUnit
 
 /**
- * 电视端 HTTP 信令服务器
+ * 电视端信令辅助类
  *
- * 运行在索尼电视上，提供以下端点：
- * - POST /signaling/offer  → 接收手机发来的 SDP Offer，返回 SDP Answer
- * - POST /signaling/candidate → 接收 ICE Candidate
- *
- * 电视端需要先把自己的信息（IP + 端口 + 分辨率）广播给手机，
- * 这在 ReceiverWebRTCManager 中处理。
+ * 注意：HTTP 服务器实际在 MainActivity 中实现（ServerSocket），
+ * 此类仅提供工具方法（获取本机 IP、向手机发送信令等）。
  */
 class SignalingServer(
     private val port: Int,
@@ -65,10 +61,7 @@ class SignalingServer(
         private set
 
     /**
-     * 启动信令服务器（使用 NanoHTTPD 或内置 HttpServer）
-     * 这里使用简化版：直接轮询手机端（手机先启动 HTTP Server）
-     *
-     * 实际方案：电视端作为 HTTP 客户端，主动拉取手机的 SDP Offer
+     * 记录本机信令地址（由 MainActivity 在 HTTP 服务器启动后调用）
      */
     fun start(myIp: String, myPort: Int) {
         signalingUrl = "http://$myIp:$myPort"
@@ -76,8 +69,15 @@ class SignalingServer(
     }
 
     /**
-     * 接收手机发来的 SDP Offer，然后连接手机信令端获取 Answer
-     * 这个由 WebRTCManager 在建立连接后调用
+     * 停止信令服务（空实现，实际由 MainActivity 关闭 ServerSocket）
+     */
+    fun stop() {
+        Log.d(TAG, "SignalingServer.stop() 被调用（HTTP 服务器由 MainActivity 管理）")
+    }
+
+    /**
+     * 向手机信令端发送 Offer 并获取 Answer（旧接口，保留兼容）
+     * 实际未使用——当前架构由 MainActivity 的 HTTP 服务器直接处理 Offer
      */
     @Suppress("BlockingMethodInNonBlockingContext")
     suspend fun receiveOfferAndSendAnswer(offerUrl: String, sdpOffer: String): String? =

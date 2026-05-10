@@ -41,8 +41,35 @@
         android:textColor="#CCCCCC"
         app:layout_constraintTop_toTopOf="@id/topBar"
         app:layout_constraintBottom_toBottomOf="@id/topBar"
+        app:layout_constraintEnd_toStartOf="@id/tvVersion"
+        android:layout_marginEnd="8dp"/>
+
+    <!-- 版本号（顶栏右上角） -->
+    <TextView
+        android:id="@+id/tvVersion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="版本号： v1.4"
+        android:textSize="13sp"
+        android:textColor="#CCCCCC"
+        android:fontFamily="sans-serif-medium"
+        app:layout_constraintTop_toTopOf="@id/topBar"
+        app:layout_constraintBottom_toBottomOf="@id/topBar"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginEnd="24dp"/>
+
+    <!-- 电视IP地址 -->
+    <TextView
+        android:id="@+id/tvTvIp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="电视IP：检测中…"
+        android:textSize="14sp"
+        android:textColor="#5F5E5A"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/topBar"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginStart="24dp"/>
 
     <!-- 电视分辨率 -->
     <TextView
@@ -52,8 +79,7 @@
         android:text="电视分辨率：检测中…"
         android:textSize="14sp"
         android:textColor="#5F5E5A"
-        android:layout_marginTop="16dp"
-        app:layout_constraintTop_toBottomOf="@id/topBar"
+        app:layout_constraintTop_toBottomOf="@id/tvTvIp"
         app:layout_constraintStart_toStartOf="parent"
         android:layout_marginStart="24dp"/>
 

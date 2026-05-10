@@ -7,6 +7,7 @@ data class TvDevice(
     val name: String,        // 显示名称，如 "索尼电视"
     val ipAddress: String,   // IP 地址
     val port: Int = 8000,    // 信令端口
+    val audioPort: Int = 8001, // 音频端口
     val width: Int,          // 电视分辨率宽
     val height: Int,         // 电视分辨率高
     val manufacturer: String = "Unknown"  // 厂商

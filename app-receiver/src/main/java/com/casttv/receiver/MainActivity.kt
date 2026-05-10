@@ -6,6 +6,9 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
 import com.casttv.receiver.databinding.ActivityMainBinding
 import com.casttv.receiver.signaling.SignalingServer
 import com.casttv.receiver.webrtc.ReceiverWebRTCManager
@@ -13,7 +16,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.net.InetAddress
+import java.net.ServerSocket
 import java.util.concurrent.TimeUnit
 
 /**
@@ -29,14 +32,15 @@ class MainActivity : Activity() {
 
     companion object {
         private const val TAG = "TVMainActivity"
-        private const val LISTEN_PORT = 8000  // 监听手机发来的 HTTP 请求
+        private const val LISTEN_PORT = 8000
         private val JSON = "application/json; charset=utf-8".toMediaType()
     }
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var webRTCManager: ReceiverWebRTCManager
     private lateinit var signalingServer: SignalingServer
-    private var serverSocket: java.net.ServerSocket? = null
+    private lateinit var audioPlayerManager: com.casttv.receiver.audio.AudioPlayerManager
+    private var serverSocket: ServerSocket? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -50,6 +54,34 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // 沉浸模式：隐藏状态栏和导航栏，真正全屏
+        @Suppress("DEPRECATION")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            window.insetsController?.hide(
+                WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
+            )
+            window.insetsController?.systemBarsBehavior =
+                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            )
+        }
+
+        // 显示版本号（右上角）
+        try {
+            val versionName = packageManager.getPackageInfo(packageName, 0).versionName
+            binding.tvVersion.text = "v$versionName"
+        } catch (e: Exception) {
+            binding.tvVersion.text = "v1.1"
+        }
 
         initWebRTC()
         startListening()
@@ -68,10 +100,14 @@ class MainActivity : Activity() {
 
         webRTCManager = ReceiverWebRTCManager(this, signalingServer)
         webRTCManager.initialize(binding.surfaceRenderer)
-        webRTCManager.tvWidth = 1920
-        webRTCManager.tvHeight = 1080
 
-        // 显示分辨率
+        // 初始化音频播放管理器并启动服务器
+        audioPlayerManager = com.casttv.receiver.audio.AudioPlayerManager(this)
+        val audioPort = 8001
+        audioPlayerManager.startAudioServer(audioPort)
+        webRTCManager.setAudioPort(audioPort)
+        Log.d(TAG, "音频播放服务器已启动，端口: $audioPort")
+
         binding.tvResolution.text = getString(
             R.string.resolution_label,
             "${webRTCManager.tvWidth}x${webRTCManager.tvHeight}"
@@ -85,13 +121,17 @@ class MainActivity : Activity() {
                     }
                     org.webrtc.PeerConnection.PeerConnectionState.CONNECTED -> {
                         binding.waitingView.visibility = View.GONE
-                        binding.statusBar.visibility = View.VISIBLE
+                        // 连接成功后隐藏状态栏和版本号，实现全屏观看
+                        binding.statusBar.visibility = View.GONE
+                        binding.tvVersion.visibility = View.GONE
                         binding.tvStatus.text = getString(R.string.connected)
+                        Log.d(TAG, "投屏已连接，已隐藏状态栏和版本号")
                     }
                     org.webrtc.PeerConnection.PeerConnectionState.DISCONNECTED,
                     org.webrtc.PeerConnection.PeerConnectionState.FAILED -> {
                         binding.waitingView.visibility = View.VISIBLE
                         binding.statusBar.visibility = View.GONE
+                        binding.tvVersion.visibility = View.VISIBLE
                         binding.tvStatus.text = getString(R.string.disconnected)
                     }
                     else -> {}
@@ -99,7 +139,6 @@ class MainActivity : Activity() {
             }
         }
 
-        // 开始广播自己的存在
         webRTCManager.startBroadcasting()
     }
 
@@ -110,14 +149,12 @@ class MainActivity : Activity() {
     private fun startListening() {
         Thread {
             try {
-                serverSocket = java.net.ServerSocket(LISTEN_PORT)
+                serverSocket = ServerSocket(LISTEN_PORT)
                 Log.d(TAG, "HTTP 信令服务器启动，端口: $LISTEN_PORT")
 
                 while (!Thread.currentThread().isInterrupted) {
                     val socket = serverSocket?.accept() ?: break
-                    Thread {
-                        handleRequest(socket)
-                    }.start()
+                    Thread { handleRequest(socket) }.start()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "服务器异常: ${e.message}")
@@ -127,21 +164,23 @@ class MainActivity : Activity() {
 
     /**
      * 处理 HTTP 请求
+     *
+     * 直接在调用线程（后台线程）执行，不使用 mainHandler.post，
+     * 确保 sendResponse 在 socket 被关闭之前执行。
      */
     @Suppress("BlockingMethodInNonBlockingContext")
     private fun handleRequest(clientSocket: java.net.Socket) {
         try {
             val reader = clientSocket.getInputStream().bufferedReader()
             val requestLine = reader.readLine() ?: return
-            Log.d(TAG, "收到请求: $requestLine")
+            Log.d(TAG, "收到请求: $requestLine 来自: ${clientSocket.inetAddress.hostAddress}")
 
-            // 解析请求
             val parts = requestLine.split(" ")
-            if (parts.size < 2) return
+            if (parts.size < 2) { sendResponse(clientSocket, 400, "Bad Request"); return }
             val method = parts[0]
             val path = parts[1]
 
-            // 读取请求体（如果有）
+            // 读取请求头
             var contentLength = 0
             var line: String?
             while (reader.readLine().also { line = it } != null) {
@@ -157,24 +196,21 @@ class MainActivity : Activity() {
                 String(bodyChars)
             } else ""
 
-            // 路由处理 - 在主线程更新 UI
-            val finalPath = path
-            val finalMethod = method
-            val finalBody = body
-            mainHandler.post {
-                when {
-                    finalPath.startsWith("/signaling/offer") && finalMethod == "POST" -> {
-                        handleOfferSync(finalBody, clientSocket)
-                    }
-                    finalPath.startsWith("/signaling/answer") && finalMethod == "POST" -> {
-                        handleAnswer(finalBody)
-                    }
-                    finalPath.startsWith("/signaling/candidate") && finalMethod == "POST" -> {
-                        handleCandidate(finalBody)
-                    }
-                    else -> {
-                        sendResponse(clientSocket, 404, "Not Found")
-                    }
+            // 直接调用处理器（不切换到主线程）
+            when {
+                path.startsWith("/signaling/offer") && method == "POST" -> {
+                    handleOfferSync(body, clientSocket)
+                }
+                path.startsWith("/signaling/answer") && method == "POST" -> {
+                    handleAnswer(body)
+                    sendResponse(clientSocket, 200, "OK")
+                }
+                path.startsWith("/signaling/candidate") && method == "POST" -> {
+                    handleCandidate(body)
+                    sendResponse(clientSocket, 200, "OK")
+                }
+                else -> {
+                    sendResponse(clientSocket, 404, "Not Found")
                 }
             }
         } catch (e: Exception) {
@@ -184,6 +220,53 @@ class MainActivity : Activity() {
         }
     }
 
+    /**
+     * 同步处理 Offer：生成 Answer 并写入 HTTP 响应
+     * 在 handleRequest 的后台线程中直接调用，sendResponse 写入后
+     * handleRequest 的 finally 块会关闭 socket。
+     */
+    @Suppress("BlockingMethodInNonBlockingContext")
+    private fun handleOfferSync(body: String, clientSocket: java.net.Socket) {
+        try {
+            val json = JSONObject(body)
+            val sdpOffer = json.optString("sdp", "")
+            val senderIp = clientSocket.inetAddress.hostAddress
+            val phoneSignalingPort = json.optInt("signaling_port", 0)
+
+            Log.d(TAG, "收到来自 $senderIp 的 Offer (signaling_port=$phoneSignalingPort)，SDP 前100字符: ${sdpOffer.take(100)}")
+
+            // 构建手机信令 URL（用于后续发送 ICE 候选）
+            // 注意：sendIceCandidateToSender 会追加 "/signaling/candidate"，所以这里只写到端口
+            val phoneSignalingUrl = if (phoneSignalingPort > 0) {
+                "http://$senderIp:$phoneSignalingPort"
+            } else {
+                null
+            }
+
+            // 同步接收 Offer 并获取 Answer（阻塞当前线程，直到 Answer 生成）
+            val answerSdp = webRTCManager.receiveCallAndGetAnswer(sdpOffer, phoneSignalingUrl)
+
+            // 将 Answer 写入 HTTP 响应
+            if (answerSdp != null) {
+                val responseBody = JSONObject().apply {
+                    put("type", "answer")
+                    put("sdp", answerSdp)
+                }.toString()
+                sendRawJsonResponse(clientSocket, responseBody)
+                Log.d(TAG, "Answer 已写入 HTTP 响应")
+            } else {
+                sendResponse(clientSocket, 500, "Failed to create answer")
+                Log.e(TAG, "生成 Answer 失败")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "处理 Offer 失败: ${e.message}")
+            try { sendResponse(clientSocket, 500, "Error: ${e.message}") } catch (e2: Exception) {}
+        }
+    }
+
+    /**
+     * 异步处理 Offer（兼容旧代码，实际已改用 handleOfferSync）
+     */
     @Suppress("BlockingMethodInNonBlockingContext")
     private fun handleOffer(body: String, clientSocket: java.net.Socket) {
         try {
@@ -191,36 +274,11 @@ class MainActivity : Activity() {
             val sdpOffer = json.optString("sdp", "")
             val senderIp = clientSocket.inetAddress.hostAddress
 
-            Log.d(TAG, "收到来自 $senderIp 的 Offer")
+            Log.d(TAG, "收到来自 $senderIp 的 Offer (async)")
 
-            // 获取本机 IP 用于回复
             val myIp = SignalingServer.getLocalIpAddress() ?: return
             val replyUrl = "http://$senderIp:${clientSocket.port}/signaling/answer"
 
-            // 建立 WebRTC 连接
-            webRTCManager.receiveCall(replyUrl, sdpOffer)
-
-            sendResponse(clientSocket, 200, "OK")
-        } catch (e: Exception) {
-            Log.e(TAG, "处理 Offer 失败: ${e.message}")
-            sendResponse(clientSocket, 500, "Error")
-        }
-    }
-
-    @Suppress("BlockingMethodInNonBlockingContext")
-    private fun handleOfferSync(body: String, clientSocket: java.net.Socket) {
-        try {
-            val json = JSONObject(body)
-            val sdpOffer = json.optString("sdp", "")
-            val senderIp = clientSocket.inetAddress.hostAddress
-
-            Log.d(TAG, "收到来自 $senderIp 的 Offer")
-
-            // 获取本机 IP 用于回复
-            val myIp = SignalingServer.getLocalIpAddress() ?: return
-            val replyUrl = "http://$senderIp:${clientSocket.port}/signaling/answer"
-
-            // 建立 WebRTC 连接
             webRTCManager.receiveCall(replyUrl, sdpOffer)
 
             sendResponse(clientSocket, 200, "OK")
@@ -253,17 +311,44 @@ class MainActivity : Activity() {
     private fun sendResponse(socket: java.net.Socket, statusCode: Int, message: String) {
         try {
             val body = """{"type":"ok","message":"$message"}"""
-            val response = """
-                HTTP/1.1 ${statusCode} ${message}
-                Content-Type: application/json
-                Content-Length: ${body.length}
-                Connection: close
-
-                $body
-            """.trimIndent()
-            socket.getOutputStream().write(response.toByteArray(Charsets.UTF_8))
+            val bodyBytes = body.toByteArray(Charsets.UTF_8)
+            val statusText = if (statusCode == 200) "OK" else "Error"
+            val response = "HTTP/1.1 $statusCode $statusText\r\n" +
+                         "Content-Type: application/json\r\n" +
+                         "Content-Length: ${bodyBytes.size}\r\n" +
+                         "Connection: close\r\n" +
+                         "\r\n" +
+                         body
+            val os = socket.getOutputStream()
+            os.write(response.toByteArray(Charsets.UTF_8))
+            os.flush()
+            Thread.sleep(100)
         } catch (e: Exception) {
             Log.e(TAG, "发送响应失败: ${e.message}")
+        }
+    }
+
+    /**
+     * 发送原始 JSON 响应（用于返回 Answer）
+     * 注意：Content-Length 必须使用字节数，不能用字符数
+     */
+    private fun sendRawJsonResponse(socket: java.net.Socket, jsonBody: String) {
+        try {
+            val bodyBytes = jsonBody.toByteArray(Charsets.UTF_8)
+            val response = "HTTP/1.1 200 OK\r\n" +
+                         "Content-Type: application/json\r\n" +
+                         "Content-Length: ${bodyBytes.size}\r\n" +
+                         "Connection: close\r\n" +
+                         "\r\n" +
+                         jsonBody
+            val os = socket.getOutputStream()
+            os.write(response.toByteArray(Charsets.UTF_8))
+            os.flush()
+            // 短暂延迟确保数据发送完毕再关闭 socket
+            Thread.sleep(100)
+            Log.d(TAG, "HTTP 响应已发送（${bodyBytes.size} 字节）")
+        } catch (e: Exception) {
+            Log.e(TAG, "发送 JSON 响应失败: ${e.message}")
         }
     }
 
